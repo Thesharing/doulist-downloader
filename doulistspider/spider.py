@@ -3,6 +3,8 @@ import requestium
 from typing import Union
 from collections import namedtuple
 
+from selenium.common.exceptions import NoSuchElementException
+
 from spiderutil.connector import Database, MongoDB
 from spiderutil.path import PathGenerator, StoreByUserName
 from spiderutil.log import Log
@@ -77,7 +79,11 @@ class DoulistSpider:
                 a = content.find_element_by_tag_name('a')
                 username = a.text[:-4]
                 links = []
-                images = item.find_element_by_class_name('status-images')
+                try:
+                    images = item.find_element_by_class_name('status-images')
+                except NoSuchElementException:
+                    self.logger.info(username + ': No images')
+                    continue
                 for a in images.find_elements_by_tag_name('a'):
                     style = a.get_attribute('style')
                     links.append(style[style.find('https'): -3].replace('/m/', '/raw/').replace('.webp', '.jpg'))
