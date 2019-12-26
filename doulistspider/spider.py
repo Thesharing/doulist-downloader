@@ -23,12 +23,21 @@ class DoulistSpider:
                  path: Union[PathGenerator, str] = None,
                  proxies: dict = None,
                  timeout: int = 15,
+                 no_window: bool = False,
                  logger=None):
+
+        options = {
+            'arguments': [
+                "--headless",
+                "--window-size=1920,1080"
+            ]
+        } if no_window else {}
 
         # https://chromedriver.chromium.org/downloads
         self.session = requestium.Session(webdriver_path=driver_path,
                                           browser='chrome',
-                                          default_timeout=timeout)
+                                          default_timeout=timeout,
+                                          webdriver_options=options)
 
         for key, value in cookies.items():
             self.session.driver.ensure_add_cookie({
@@ -75,19 +84,19 @@ class DoulistSpider:
         def extract_link():
             for item in self.driver.find_elements_by_class_name('doulist-item'):
                 item_id = item.get_attribute('id')
-                content = item.find_element_by_class_name('status-content')
-                a = content.find_element_by_tag_name('a')
-                username = a.text[:-4]
-                links = []
                 try:
+                    content = item.find_element_by_class_name('status-content')
+                    a = content.find_element_by_tag_name('a')
+                    username = a.text[:-4]
+                    links = []
                     images = item.find_element_by_class_name('status-images')
+                    for a in images.find_elements_by_tag_name('a'):
+                        style = a.get_attribute('style')
+                        links.append(style[style.find('https'): -3].replace('/m/', '/raw/').replace('.webp', '.jpg'))
+                    yield Item(item_id, username, links)
                 except NoSuchElementException:
-                    self.logger.info(username + ': No images')
+                    self.logger.info('Content not available.')
                     continue
-                for a in images.find_elements_by_tag_name('a'):
-                    style = a.get_attribute('style')
-                    links.append(style[style.find('https'): -3].replace('/m/', '/raw/').replace('.webp', '.jpg'))
-                yield Item(item_id, username, links)
 
         page = 1
         params['start'] = 0
