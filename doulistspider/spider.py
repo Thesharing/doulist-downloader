@@ -85,15 +85,25 @@ class DoulistSpider:
             for item in self.driver.find_elements_by_class_name('doulist-item'):
                 item_id = item.get_attribute('id')
                 try:
-                    content = item.find_element_by_class_name('status-content')
-                    a = content.find_element_by_tag_name('a')
-                    username = a.text[:-4]
-                    links = []
-                    images = item.find_element_by_class_name('status-images')
-                    for a in images.find_elements_by_tag_name('a'):
-                        style = a.get_attribute('style')
-                        links.append(style[style.find('https'): -3].replace('/m/', '/raw/').replace('.webp', '.jpg'))
-                    yield Item(item_id, username, links)
+                    source = item.find_element_by_class_name('source')
+                    source = source.text.strip()
+                    if source[-2:] == '广播':
+                        content = item.find_element_by_class_name('status-content')
+                        a = content.find_element_by_tag_name('a')
+                        username = a.text[:-4]
+                        links = []
+                        images = item.find_element_by_class_name('status-images')
+                        for a in images.find_elements_by_tag_name('a'):
+                            style = a.get_attribute('style')
+                            links.append(style[style.find('https'): -3].replace('/m/', '/raw/').replace('.webp', '.jpg'))
+                        yield Item(item_id, username, links)
+                    elif source[-2:] == '相册':
+                        pic = item.find_element_by_class_name('pic')
+                        links = []
+                        for img in pic.find_elements_by_tag_name('img'):
+                            src = img.get_attribute('src')
+                            links.append(src.replace('/l/', '/raw/').replace('.webp', '.jpg'))
+                        yield Item(item_id, 'Album', links)
                 except NoSuchElementException:
                     self.logger.info('Content not available.')
                     continue
@@ -113,6 +123,7 @@ class DoulistSpider:
             page += 1
 
         result.reverse()
+        self.logger.info('Total {} items.'.format(len(result)))
         return result
 
     def download(self, item: Item):
